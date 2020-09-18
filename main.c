@@ -46,9 +46,8 @@ int charsh_cd(char** args)
 	if(args[1] == NULL) fprintf(stderr, "charsh: no argument given\n"); //could do some alt stuff
 	else
 	{
-		//handle special cases
-		//if(args[1] == '~') //TODO doesn't work -> doesn't match against it. printf args[1] does show ~ tho?? 
-		if(strcmp(args[1], "~") == 0) //strcmp returns 0 if it's a match ??? lmao
+		//handle special cases
+		if(strcmp(args[1], "~") == 0) //strcmp returns 0 if it's a match 
 		{
 			const char* homedir;
 			if((homedir = getenv("HOME")) == NULL) homedir = getpwuid(getuid())->pw_dir;
@@ -165,42 +164,6 @@ char* charsh_read_line(void)
 	ssize_t buffsize = 0; //getline will allocate buffer for us.
 	getline(&line, &buffsize, stdin);
 	return line;
-    /* //OLD SCHOOL
-	int buffsize = CHARSH_BUFFSIZE;
-	int position = 0;
-	char* buffer = malloc(sizeof(char) * buffsize);
-	int c; //EOF is an int, so we use int instead of char.
-
-	if(!buffer)
-	{
-		fprintf(stderr, "charsh: allocation error. \n"); //oopsie woopsie, we did a fuckie wucky;
-		exit(EXIT_FAILURE);
-	}
-
-	while(1)
-	{
-		if(c == EOF || c == '\n') //finished reading the line
-		{
-			buffer[position] = '\0';
-			return buffer;
-		}
-		else //advance 
-		{
-			buffer[position] = c;
-		}
-		++position;
-
-		if(position >= buffsize) // run out of memory? reallocate more.
-		{
-			buffsize += CHARSH_BUFFSIZE;
-			buffer = realloc(buffer, buffsize);
-			if(!buffer)
-			{
-				fprintf(stderr, "charsh: allocation error. \n");
-				exit(EXIT_FAILURE);
-			}
-		}
-	} */
 }
 
 void charsh_loop(void)
