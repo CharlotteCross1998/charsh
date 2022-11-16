@@ -13,14 +13,17 @@
 #define CHARSH_TOKEN_BUFFSIZE 128 //token buffer size. 
 #define CHARSH_TOKEN_DELIMITER " \t\r\n\a"
 
+//Colours
+#define ORANGE "\033[38;5;208m"
+#define RED "\033[31m"
+#define BLUE "\033[34m"
+#define RESET "\033[0m"
+
 //prototyping
 int charsh_launch_process(char** args);
 void cleanExit(int statusCode);
 void sigHandler(int);
 void execFile(char*);
-
-char* resetColour();
-char* orange();
 
 //Built-in commands
 int charsh_cd(char** args);
@@ -42,7 +45,7 @@ char* shell;
 typedef struct options {
 	bool isGay;
 } options_t;
-
+//TODO: Add options
 options_t Options;
 
 //Globals
@@ -90,7 +93,7 @@ int charsh_time(char** args)
 	// //Args starts with time so gotta move everything over by 1
 	// //Get numbers of args
 	// int numArgs = 0;
-	// for(int i = 0; i < 1024; ++i)
+	// for(int i = 0; i < PATH_MAX; ++i)
 	// {
 		// ++numArgs;
 		// if(args[i] == NULL) break;
@@ -121,8 +124,11 @@ int charsh_cd(char** args)
 	else
 	{
 		//handle special cases
-		if(strcmp(args[1], "~") == 0) //strcmp returns 0 if it's a match 
+		if(strcmp(args[1], "~") == 0)
 		{
+			//TODO: Append home directory, e.g "cd ~/Documents" becomes "/home/user/Documents/"
+
+			//If "cd ~" change to home directory
 			if(chdir(getHomeDir()) != 0)
 			{
 				perror("charsh");
@@ -176,7 +182,7 @@ int charsh_execute(char** args)
 	if(args[0] == NULL) return 1; //empty command
 	long unsigned int numArgs = 0;
 	//Get numbers of args
-	for(long unsigned int i = 0; i < 1024; ++i)
+	for(long unsigned int i = 0; i < PATH_MAX; ++i)
 	{
 		++numArgs;
 		if(args[i] == NULL) break;
@@ -270,20 +276,48 @@ void charsh_loop(void)
 	char* line;
 	char** args;
 	int status;
+	uid_t uid = geteuid();
+	struct passwd* pw = getpwuid(uid);
+	char hostname[PATH_MAX];
+	gethostname(hostname, PATH_MAX);
+	char cwd[PATH_MAX];
 	do
 	{
-		char cwd[PATH_MAX];
 		if(getcwd(cwd, sizeof(cwd)) != NULL)
 		{
-			const char* homedir;
-			if((homedir = getenv("HOME")) == NULL) homedir = getpwuid(getuid())->pw_dir;
-			if(strcmp(cwd, homedir) == 0) printf("~ charsh %sλ%s ", orange(), resetColour()); //strcmp returns 0 if a match
-			else printf("%s charsh %sλ%s ", cwd, orange(), resetColour());
+			const char* homedir = getHomeDir();
+			if(strcmp(cwd, homedir) == 0) 
+			{
+				if(pw)
+				{
+					printf("%s%s@%s%s %s[%s~%s] %sλ%s ", pw->pw_name, RED,  RESET, hostname, BLUE, RESET, BLUE, ORANGE, RESET);
+				}
+				else 
+				{
+					printf("%s[%s~%s] %sλ%s ", BLUE, RESET, BLUE, ORANGE, RESET);
+				}
+			}
+			else if(pw)
+			{
+				printf("%s%s@%s%s %s[%s%s%s] %sλ%s ", pw->pw_name, RED,  RESET, hostname, BLUE, RESET, cwd, BLUE, ORANGE, RESET);
+			}
+			else 
+			{
+				printf("%s[%s%s%s] %sλ%s ", BLUE, RESET, cwd, BLUE, ORANGE, RESET);
+			}
 		}
 		else
 		{
-			printf("charsh %sλ%s ", orange(), resetColour());
+			if(pw)
+			{
+				printf("%s%s@%s%s %s[%s%s%s] %sλ%s ", pw->pw_name, RED,  RESET, hostname, BLUE, RESET, cwd, BLUE, ORANGE, RESET);
+			}
+			else 
+			{
+				printf("%s[%s%s%s] %sλ%s ", BLUE, RESET, cwd, BLUE, ORANGE, RESET);
+			}
 		}
+		//TODO: Get arrow keys and apply history 
 		// if(getch() == '\033')
 		// {
 			// switch(getch())
@@ -322,6 +356,7 @@ void sigHandler(int sig)
 
 void execFile(char* filepath)
 {
+	//TODO: Implement this
 	printf("Function not yet implemented\n");
 	cleanExit(EXIT_SUCCESS);
 }
@@ -332,7 +367,7 @@ void parseOptions()
 	//FIXME: Need to convert char* to char[] and then go through the array
 	//		 to parse each option
 	
-	// char* options[1024] = {""};
+	// char* options[PATH_MAX] = {""};
 	// int index = 0;
 	// int indexChar = 0;
 	// char* tmp = "";
@@ -348,12 +383,14 @@ void parseOptions()
 	// if(verbose) printf("DEBUG: %s\n", optionsFile);
 	// if(verbose)
 	// {
-		// for(int i = 0; i < 1024; ++i)
+		// for(int i = 0; i < PATH_MAX; ++i)
 		// {
 			// if(options[i] == NULL) break;
 			// printf("DEBUG: %s\n", options[i]);
 		// }
 	// }
+	//TODO: Set options
+	//Options.isGay = true;
 	fclose(optionsFilefp);
 	if(verbose) printf("DEBUG: Options file parsed\n");
 }
@@ -392,13 +429,13 @@ int main(int argc, char** argv)
 	if(verbose) printf("DEBUG: Getting SHELL env\n");
 	shell = getenv("SHELL");
 	//Change it to be charsh
-	char absPath[1024];
+	char absPath[PATH_MAX];
 	char* p;
 	if(!(p = strrchr(argv[0], '/'))) getcwd(absPath, sizeof(absPath));
 	else
 	{
 		*p = '\0';
-		char pathSave[1024];
+		char pathSave[PATH_MAX];
 		getcwd(pathSave, sizeof(pathSave));
 		chdir(argv[0]);
 		getcwd(absPath, sizeof(absPath));
@@ -407,10 +444,11 @@ int main(int argc, char** argv)
 	if(verbose) printf("DEBUG: Setting SHELL env\n");
 	setenv("SHELL", absPath, 1);
 	//Get history for up arrow down arrow operations
-	char historyFilePath[1024] = "";
+	char historyFilePath[PATH_MAX] = "";
 	strcat(historyFilePath, getHomeDir());
 	strcat(historyFilePath, "/.charsh_history");
 	if(verbose) printf("DEBUG: Reading history file from %s\n", historyFilePath);
+	//TODO: Clean this up and generalise function
 	histFilefp = fopen(historyFilePath, "a+");
 	if(histFilefp != NULL)
 	{
@@ -454,7 +492,7 @@ int main(int argc, char** argv)
 		//cleanExit(EXIT_FAILURE);
 	}
 	//Get options file
-	char optionsFilePath[1024] = "";
+	char optionsFilePath[PATH_MAX] = "";
 	strcat(optionsFilePath, getHomeDir());
 	strcat(optionsFilePath, "/.charshrc");
 	if(verbose) printf("DEBUG: Reading options file from %s\n", optionsFilePath);
@@ -503,14 +541,4 @@ int main(int argc, char** argv)
 	//Start processing commands
 	charsh_loop();
 	cleanExit(EXIT_SUCCESS);
-}
-
-//Colours
-char* resetColour()
-{
-	return "\033[0m";	
-}
-char* orange()
-{
-	return "\033[38;5;208m";
 }
